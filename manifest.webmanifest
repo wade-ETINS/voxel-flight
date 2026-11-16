@@ -1,0 +1,14 @@
+{
+  "name": "體素飛行調校台",
+  "short_name": "體素飛行",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0e1621",
+  "theme_color": "#0e1621",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

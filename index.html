@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="體素飛行">
+<meta name="theme-color" content="#0e1621">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>體素飛行調校台</title>
+<style>
+/* 版面構想：上方固定「畫面＋播放列」，下方捲動「參數」；寬螢幕改為左右兩欄 */
+:root{
+  color-scheme:dark;
+  --bg:#0e1621; --panel:#162130; --line:#283a50; --ink:#e3ebf5; --muted:#8fa3bb;
+  --accent:#f2b632; --accent-ink:#1a1405; --ok:#5dd39e;
+  --body:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{overscroll-behavior:none}
+.app{padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.stagewrap{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{max-width:1180px;margin:0 auto}
+.stagewrap{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:4px;overflow-x:auto;padding:8px 12px 0;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:none;background:none;border:0;border-bottom:3px solid transparent;padding:6px 12px 7px;color:var(--muted);font-weight:600;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.stage{padding:8px 12px 0;position:relative}
+.stage .badge{position:absolute;left:20px;top:16px;background:rgba(14,22,33,.8);color:var(--ink)}
+.stage .badge.rev{background:var(--accent);color:var(--accent-ink)}
+@media (max-width:520px){.review .txt{display:none}.review .btn{flex:1;text-align:center;padding:7px 4px}#bLive{flex:2}}
+#cv{display:block;width:100%;aspect-ratio:320/220;image-rendering:pixelated;image-rendering:crisp-edges;background:#000;border-radius:6px;touch-action:none;cursor:crosshair}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 12px}
+.bar + .bar{padding-top:0}
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 11px;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;white-space:nowrap}
+.btn:active,.btn.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.hold{touch-action:none;flex:1;min-width:84px;text-align:center;font-weight:700}
+.chk{display:inline-flex;align-items:center;gap:6px;color:var(--muted);white-space:nowrap}
+.review{display:none}
+.tune .review{display:flex}
+#scrub{flex:1.6;min-width:90px}
+.speed{display:flex;align-items:center;gap:6px;flex:1;min-width:150px;color:var(--muted);white-space:nowrap}
+.speed input{flex:1;min-width:50px}
+#frameNo{font-size:12px;min-width:7ch;text-align:right}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+#readout{font-family:var(--mono);font-size:12px;color:var(--muted);padding:0 12px 8px;white-space:pre-wrap;display:none}
+.tune #readout{display:block}
+.badge{font-family:var(--mono);font-size:12px;padding:2px 7px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.badge.rev{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
+main{padding:12px 12px 48px}
+section[hidden]{display:none}
+h2{font-size:17px;margin:4px 0 8px;text-wrap:balance}
+.note{color:var(--muted);margin:0 0 10px;max-width:62ch}
+details.advice{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;padding:8px 12px;margin-bottom:12px}
+details.advice summary{cursor:pointer;font-weight:700}
+details.advice ol{margin:6px 0 2px;padding-left:20px;color:var(--ink)}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;align-items:center}
+.presets span{color:var(--muted)}
+.rows{display:grid;gap:10px}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px}
+.row label{font-weight:600}
+.row output{font-family:var(--mono);color:var(--accent)}
+.row input[type=range]{grid-column:1/-1;width:100%}
+.row .tip{grid-column:1/-1;margin:0;color:var(--muted);font-size:13px}
+.row input[type=color]{width:44px;height:28px;padding:0;border:1px solid var(--line);border-radius:4px;background:none}
+.row input[type=checkbox]{width:20px;height:20px}
+.row select{background:#0a111a;border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+.tune #bFs{display:none}
+/* 全螢幕：畫面鋪滿，按鈕和數值浮在畫面上 */
+.fs .stagewrap{position:fixed;inset:0;z-index:50;background:#000;border:0;min-height:0;max-height:none;overflow:hidden}
+.fs .tabs,.fs .review,.fs main,.fs .badge,.fs .chk{display:none !important}
+.fs .stage{position:absolute;inset:0;padding:0}
+.fs #cv{width:100%;height:100%;aspect-ratio:auto;border-radius:0}
+.fs .mainbar{position:absolute;left:0;right:0;bottom:0;padding:10px max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));gap:8px;pointer-events:none}
+.fs .mainbar .btn{pointer-events:auto;background:rgba(22,33,48,.62);border-color:rgba(255,255,255,.25)}
+.fs .mainbar .btn:active,.fs .mainbar .btn.on{background:var(--accent)}
+.fs #bThrust{order:9;flex:none;margin-left:auto;min-width:120px;padding:16px 18px}
+.fs #readout{display:block;position:absolute;top:0;left:0;right:0;padding:max(6px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 6px max(12px,env(safe-area-inset-left));color:#fff;background:rgba(10,16,24,.5);text-align:center;pointer-events:none}
+/* 手機橫向（未開全螢幕）：左右兩欄，畫面高度不超過螢幕 */
+@media (orientation:landscape) and (max-height:540px){
+  .app{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start}
+  .stagewrap{border-bottom:0;border-right:1px solid var(--line);max-height:100dvh;overflow-y:auto}
+  #cv{width:min(100%,calc((100dvh - 112px)*1.4545));margin:0 auto}
+  .fs #cv{width:100%;margin:0}
+}
+#jetprev{display:block;width:100%;max-width:640px;image-rendering:pixelated;border:1px solid var(--line);border-radius:6px;margin:0 0 12px;background:#1b2a3d}
+textarea{width:100%;min-height:150px;background:#0a111a;border:1px solid var(--line);border-radius:6px;padding:8px;font-family:var(--mono);font-size:12px}
+input[type=text]{background:#0a111a;border:1px solid var(--line);border-radius:6px;padding:7px 9px;flex:1;min-width:140px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-bottom:12px;display:grid;gap:8px}
+.card h3{margin:0;font-size:15px}
+.line{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.scene{display:flex;gap:6px;align-items:center;border-top:1px solid var(--line);padding-top:6px}
+.scene b{flex:1;overflow-wrap:anywhere}
+#msg{color:var(--ok);min-height:1.4em}
+ul.keys{margin:0;padding-left:18px;color:var(--muted)}
+@media (min-width:900px){
+  .app{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);align-items:start}
+  .stagewrap{border-bottom:0;border-right:1px solid var(--line);min-height:100vh}
+  main{padding-top:16px}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="stagewrap">
+    <nav class="tabs" role="tablist" aria-label="分頁">
+      <button role="tab" data-tab="play">試玩</button>
+      <button role="tab" data-tab="jet">戰機</button>
+      <button role="tab" data-tab="terrain">地形</button>
+      <button role="tab" data-tab="flight">操控</button>
+      <button role="tab" data-tab="cockpit">座艙</button>
+      <button role="tab" data-tab="params">參數檔</button>
+    </nav>
+    <div class="stage" id="stage"><canvas id="cv" width="320" height="220" aria-label="遊戲畫面"></canvas><span class="badge" id="badge">即時</span></div>
+    <div class="bar mainbar">
+      <button class="btn hold" id="bThrust">推進（按住）</button>
+      <button class="btn" id="bRoll">翻滾</button>
+      <button class="btn" id="bView">視角</button>
+      <button class="btn" id="bBgm">音樂：關</button>
+      <button class="btn" id="bFs">全螢幕</button>
+      <label class="chk"><input type="checkbox" id="auto"> 自動飛行</label>
+    </div>
+    <div class="bar review">
+      <button class="btn" id="bRew" aria-label="倒帶播放">⏪<span class="txt"> 倒帶</span></button>
+      <button class="btn" id="bPrev" aria-label="上一幀">◀<span class="txt"> 1 幀</span></button>
+      <button class="btn" id="bPause" aria-label="暫停">⏸<span class="txt"> 暫停</span></button>
+      <button class="btn" id="bNext" aria-label="下一幀"><span class="txt">1 幀 </span>▶</button>
+      <button class="btn" id="bFwd" aria-label="向前重播"><span class="txt">重播 </span>⏩</button>
+      <button class="btn" id="bLive">繼續飛行</button>
+    </div>
+    <div class="bar review">
+      <input type="range" id="scrub" min="0" max="0" value="0" step="1" aria-label="時間軸">
+      <span class="mono" id="frameNo">0/0</span>
+      <label class="speed" for="speed">速度 <input type="range" id="speed" min="0.05" max="2" step="0.05" value="1"> <span class="mono" id="speedV">1.00×</span></label>
+    </div>
+    <div id="readout"></div>
+  </div>
+
+  <main>
+    <section id="tab-play">
+      <h2>試玩</h2>
+      <p class="note">在畫面上移動滑鼠或用手指拖曳來轉向、爬升與俯衝。其他分頁可以個別調整參數，改完回到這裡試手感。</p>
+      <div class="card">
+        <h3>場景</h3>
+        <div class="line" id="sceneBtns"></div>
+        <p class="note" style="margin:0">切換場景會帶入適合的海平面、高度和雲量，其餘設定沿用「地形」分頁。</p>
+      </div>
+      <div class="card">
+        <h3>操作方式</h3>
+        <ul class="keys">
+          <li>觸控：在畫面上拖曳＝轉向；點一下畫面＝翻滾；「推進」按鈕按住加速</li>
+          <li>滑鼠：移動＝轉向；按住左鍵＝推進；快點一下＝翻滾</li>
+          <li>鍵盤：方向鍵或 WASD 轉向、Shift 推進、R 翻滾、空白鍵切換視角、P 暫停</li>
+        </ul>
+      </div>
+    </section>
+    <section id="tab-jet" hidden></section>
+    <section id="tab-terrain" hidden></section>
+    <section id="tab-flight" hidden></section>
+    <section id="tab-cockpit" hidden></section>
+    <section id="tab-params" hidden>
+      <h2>參數檔</h2>
+      <p class="note">四個分頁的參數會合成一份參數檔。存成情境後，換一個題材（例如沙漠、夜間、慢速螺旋槳機）時可以直接套用，或只套用其中幾組。</p>
+      <div class="card">
+        <h3>套用範圍</h3>
+        <div class="line">
+          <label class="chk"><input type="checkbox" id="g-jet" checked> 戰機</label>
+          <label class="chk"><input type="checkbox" id="g-terrain" checked> 地形</label>
+          <label class="chk"><input type="checkbox" id="g-flight" checked> 操控</label>
+          <label class="chk"><input type="checkbox" id="g-cockpit" checked> 座艙</label>
+        </div>
+      </div>
+      <div class="card">
+        <h3>情境（存在這台裝置的瀏覽器裡）</h3>
+        <div class="line"><input type="text" id="sceneName" placeholder="情境名稱，例如：群島晴天" aria-label="情境名稱"><button class="btn" id="bSaveScene">儲存目前參數</button></div>
+        <div id="scenes"></div>
+      </div>
+      <div class="card">
+        <h3>匯出</h3>
+        <textarea id="exp" readonly aria-label="匯出的參數 JSON"></textarea>
+        <div class="line"><button class="btn" id="bCopy">複製 JSON</button></div>
+      </div>
+      <div class="card">
+        <h3>匯入</h3>
+        <textarea id="imp" placeholder="把參數 JSON 貼在這裡" aria-label="要匯入的參數 JSON"></textarea>
+        <div class="line"><button class="btn" id="bImport">套用匯入的參數</button><button class="btn" id="bResetAll">全部還原預設</button></div>
+      </div>
+      <div id="msg" role="status"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+'use strict';
+/* ============================================================
+   1. 參數定義（SCHEMA）
+   每個參數：k 鍵名、label 顯示名稱、範圍、預設值 def、tip 建議說明
+   regen：改動後需要重建的資料（world 地形、clouds 雲、jet 戰機模型）
+   ============================================================ */
+const SCHEMA = {
+  jet: { title:'戰機', view:1,
+    intro:'戰機是用程式堆出來的小方塊模型，任何滾轉角度都由同一個模型即時算出，不需要手繪圖。',
+    advice:['先定「機身長度」和「翼展」的比例，翼展約為長度的 0.8 倍最像戰機','用下方的滾轉預覽，確認左右 60° 時輪廓仍然清楚','最後才調顏色、描邊和明暗階數'],
+    presets:{ '標準':{}, '三角翼':{span:24,sweep:0.95,fin:4,len:22}, '重型':{len:28,span:18,sweep:0.35,fin:7,size:1.2} },
+    items:[
+      {k:'len',label:'機身長度',min:16,max:30,step:1,def:24,regen:'jet',tip:'單位是方塊數。建議 20–26；太短會看不出機頭。'},
+      {k:'span',label:'翼展',min:10,max:28,step:1,def:20,regen:'jet',tip:'建議為機身長度的 0.7–0.9 倍。'},
+      {k:'sweep',label:'後掠程度',min:0,max:1,step:0.05,def:0.6,regen:'jet',tip:'0 是平直翼，1 是尖銳三角翼。建議 0.5–0.8。'},
+      {k:'fin',label:'垂直尾翼高度',min:2,max:8,step:1,def:5,regen:'jet',tip:'滾轉時最容易辨認姿態的部位。建議 4–6。'},
+      {k:'size',label:'畫面上的大小',min:0.5,max:2,step:0.05,def:1,tip:'只影響顯示，不影響操控。追尾視角建議 0.9–1.3。'},
+      {k:'shades',label:'明暗階數',min:2,max:6,step:1,def:4,tip:'階數越少越有像素風。建議 3–4。'},
+      {k:'outline',label:'深色描邊',type:'bool',def:true,tip:'開啟後在雲和海面上比較不會糊掉。'},
+      {k:'flame',label:'噴焰長度',min:0,max:2,step:0.1,def:1,tip:'推進時會再拉長。建議 0.8–1.2。'},
+      {k:'trail',label:'翼尖尾跡長度',min:0,max:120,step:5,def:70,tip:'單位是幀數，0 為關閉。用來看飛行軌跡。'},
+      {k:'body',label:'機身顏色',type:'color',def:'#465468',regen:'jet',tip:'中等明度最能看出明暗變化。'},
+      {k:'accent',label:'點綴色',type:'color',def:'#f2b632',regen:'jet',tip:'用在翼尖與尾翼頂端，選和海面對比強的顏色。'},
+      {k:'canopy',label:'座艙罩顏色',type:'color',def:'#6fe0ea',regen:'jet',tip:'亮色可以幫助辨認機頭方向。'}
+    ]},
+  terrain: { title:'地形', view:1,
+    intro:'地形是一張高度圖。追尾視角由近到遠逐欄掃描這張圖畫出遠近感，沒有用到 3D 引擎。',
+    advice:['先用「種子」和「海平面」決定島嶼的分布','再調「視野距離」和「遠景細節」：這兩項最影響效能，畫面卡頓時先降它們','最後調霧、鏡頭距離和鏡頭高度'],
+    presets:{ '群島':{theme:'islands',sea:0.49,scale:5,rough:0.55,terrace:10,hScale:1,cloud:0.3,fog:0.5},
+      '城市':{theme:'city',sea:0.44,scale:3,rough:0.45,terrace:0,hScale:0.6,cloud:0.2,fog:0.6},
+      '火山區':{theme:'volcano',sea:0.42,scale:5,rough:0.55,terrace:6,hScale:1,cloud:0.4,fog:0.7},
+      '沙漠':{theme:'desert',sea:0.34,scale:4,rough:0.48,terrace:0,hScale:0.7,cloud:0.1,fog:0.45},
+      '北極極地':{} },
+    items:[
+      {k:'theme',label:'場景',type:'select',def:'islands',regen:'world',options:[['islands','群島'],['city','城市'],['volcano','火山區'],['desert','沙漠'],['arctic','北極極地']],tip:'決定配色和地貌規則。用上方的預設組合切換，會一併帶入適合該場景的海平面、高度和雲量。'},
+      {k:'seed',label:'種子',min:1,max:99,step:1,def:7,regen:'world',tip:'換一個數字就是一張新地圖。放開滑桿後才會重建。'},
+      {k:'sea',label:'海平面',min:0.3,max:0.7,step:0.01,def:0.56,regen:'world',tip:'越高海越多。群島建議 0.52–0.60。'},
+      {k:'scale',label:'島嶼密度',min:2,max:10,step:1,def:5,regen:'world',tip:'越大島越小越多。建議 4–6。'},
+      {k:'rough',label:'海岸破碎度',min:0.3,max:0.7,step:0.01,def:0.5,regen:'world',tip:'越大海岸線越曲折。建議 0.45–0.55。'},
+      {k:'terrace',label:'梯田階高',min:0,max:16,step:1,def:8,regen:'world',tip:'產生等高線般的階梯色塊，0 為關閉。'},
+      {k:'hScale',label:'高度誇張',min:0.2,max:1.2,step:0.05,def:0.5,tip:'山的垂直倍率。建議 0.4–0.7；過高會擋住視線。'},
+      {k:'fov',label:'追尾視野角',min:50,max:100,step:1,def:70,unit:'°',tip:'越大速度感越強，但邊緣會變形。建議 65–80。'},
+      {k:'far',label:'視野距離',min:300,max:1600,step:50,def:900,tip:'看得多遠。越大越耗效能，建議 700–1100。'},
+      {k:'detail',label:'遠景細節',min:0.004,max:0.03,step:0.001,def:0.012,tip:'數值越小越精細也越慢。建議 0.010–0.016。'},
+      {k:'fog',label:'霧',min:0,max:0.95,step:0.05,def:0.55,tip:'遮住遠方地形的突然出現。建議 0.4–0.7。'},
+      {k:'camDist',label:'鏡頭距離',min:25,max:140,step:1,def:60,tip:'鏡頭在機尾後方多遠。建議 50–80。'},
+      {k:'camH',label:'鏡頭高度',min:5,max:60,step:1,def:22,tip:'鏡頭比戰機高多少。建議 15–30。'},
+      {k:'camLag',label:'鏡頭跟隨速度',min:0.5,max:10,step:0.1,def:3,tip:'越小鏡頭越慢跟上，轉彎時看得到機身側面。建議 2–4。'},
+      {k:'camRoll',label:'鏡頭跟著傾斜',min:0,max:1,step:0.05,def:0.35,tip:'0 是地平線永遠水平，1 是完全跟著戰機。建議 0.2–0.5。'},
+      {k:'zoom',label:'俯視縮放',min:0.8,max:4,step:0.1,def:1.6,tip:'只影響俯視視角。越大看得越廣。'},
+      {k:'cloud',label:'雲量',min:0,max:0.7,step:0.05,def:0.35,regen:'clouds',tip:'建議 0.25–0.45；太多會擋住地形。'},
+      {k:'cloudAlt',label:'雲層高度',min:80,max:300,step:5,def:150,tip:'建議高於最高的山。'},
+      {k:'wind',label:'風速',min:0,max:30,step:1,def:6,tip:'雲和雲影的移動速度。'}
+    ]},
+  flight: { title:'操控', view:1,
+    intro:'飛行模型是幾條簡單公式：輸入決定傾角，傾角決定轉彎。每一幀更新一次。',
+    advice:['先調「滾轉速率」和「最大傾角」，這兩項決定反應快慢','再調「轉彎率」，決定迴轉半徑','最後調速度。飛一段後按暫停，改參數再按「用目前參數重算這段」，可以用同一組輸入比較差異'],
+    presets:{ '街機':{}, '靈敏':{rollRate:7,turnRate:1.8,pitchRate:5,maxBank:70}, '沉穩':{rollRate:2,turnRate:0.8,pitchRate:1.8,maxBank:45,accel:0.8} },
+    items:[
+      {k:'cruise',label:'巡航速度',min:40,max:200,step:5,def:90,tip:'沒按推進時的速度。建議 80–110。'},
+      {k:'boost',label:'推進速度',min:80,max:400,step:5,def:180,tip:'按住推進時的速度。建議為巡航的 1.8–2.2 倍。'},
+      {k:'accel',label:'加減速反應',min:0.3,max:5,step:0.1,def:1.5,tip:'越大越快到達目標速度。建議 1–2。'},
+      {k:'maxBank',label:'最大傾角',min:20,max:85,step:1,def:60,unit:'°',tip:'指標拉到最邊時的傾斜角度。建議 50–65。'},
+      {k:'rollRate',label:'滾轉速率',min:1,max:10,step:0.1,def:4,tip:'傾斜跟上輸入的快慢。太靈敏就調低，太鈍就調高。建議 3–5。'},
+      {k:'turnRate',label:'轉彎率',min:0.3,max:3,step:0.05,def:1.2,tip:'滿傾角時每秒轉多少弧度。建議 1.0–1.5。'},
+      {k:'maxPitch',label:'最大俯仰角',min:10,max:50,step:1,def:30,unit:'°',tip:'爬升與俯衝的極限。建議 25–35。'},
+      {k:'pitchRate',label:'俯仰速率',min:1,max:8,step:0.1,def:3,tip:'機頭抬起或壓下的快慢。建議 2.5–4。'},
+      {k:'barrel',label:'翻滾一圈秒數',min:0.3,max:2,step:0.05,def:0.8,unit:' 秒',tip:'建議 0.6–1.0。'},
+      {k:'dead',label:'中央死區',min:0,max:0.3,step:0.01,def:0.08,tip:'指標在畫面中央多大範圍內不反應。手機建議 0.05–0.10。'},
+      {k:'minClear',label:'離地最低高度',min:4,max:40,step:1,def:12,tip:'低於這個高度會自動拉起，不會墜毀。'},
+      {k:'ceiling',label:'飛行高度上限',min:150,max:600,step:10,def:320,tip:'建議高於雲層 100 以上。'}
+    ]},
+  cockpit: { title:'座艙', view:2,
+    intro:'座艙視角的地形和追尾視角用同一套算法，只是鏡頭放在機內並完全跟著機身傾斜。儀表全部用線條和圓形畫出來。',
+    advice:['先調「視野角」到速度感舒服為止','再調 HUD 的俯仰刻度間隔，確認逐幀看時刻度線和地平線對得上','最後調儀表板高度和震動'],
+    presets:{ '標準':{}, '極簡':{canopy:false,panel:0.22,shake:0}, '廣角':{fov:100,ladder:15} },
+    items:[
+      {k:'fov',label:'視野角',min:55,max:110,step:1,def:80,unit:'°',tip:'建議 75–90。'},
+      {k:'hud',label:'顯示 HUD',type:'bool',def:true,tip:'抬頭顯示器：俯仰刻度、航向、速度、高度。'},
+      {k:'hudColor',label:'HUD 顏色',type:'color',def:'#5dff8a',tip:'綠色在天空與海面上都清楚。'},
+      {k:'ladder',label:'俯仰刻度間隔',min:5,max:20,step:5,def:10,unit:'°',tip:'建議 10°。'},
+      {k:'panel',label:'儀表板高度',min:0.2,max:0.5,step:0.01,def:0.34,tip:'占畫面高度的比例。建議 0.30–0.38。'},
+      {k:'canopy',label:'顯示座艙罩框',type:'bool',def:true,tip:'增加機內感，但會擋住一些視野。'},
+      {k:'shake',label:'推進震動',min:0,max:2,step:0.1,def:0.6,tip:'推進時畫面的晃動量。逐幀檢視時建議設 0。'},
+      {k:'radar',label:'雷達範圍',min:100,max:800,step:20,def:300,tip:'左側小地圖顯示的半徑。'}
+    ]}
+};
+const GROUPS = ['jet','terrain','flight','cockpit'];
+// 2026-11-16 試飛後採用的預設值（覆蓋上面各項的 def）；預設場景為北極極地
+const TUNED = {
+  jet:{len:24,span:22,sweep:0.6,fin:5,size:1,shades:4,outline:true,flame:1.7,trail:65,body:'#3a87fe',accent:'#f2b632',canopy:'#6fe0ea'},
+  terrain:{theme:'arctic',seed:7,sea:0.52,scale:5,rough:0.62,terrace:0,hScale:0.4,fov:70,far:1100,detail:0.01,fog:0.1,camDist:70,camH:20,camLag:2.9,camRoll:0.35,zoom:1.6,cloud:0.15,cloudAlt:150,wind:8},
+  flight:{cruise:90,boost:180,accel:1.5,maxBank:60,rollRate:4,turnRate:1.2,maxPitch:30,pitchRate:3,barrel:0.85,dead:0.08,minClear:12,ceiling:190},
+  cockpit:{fov:92,hud:true,hudColor:'#5dff8a',ladder:10,panel:0.25,canopy:true,shake:0.9,radar:360}
+};
+for (const g of GROUPS) for (const it of SCHEMA[g].items) if (it.k in TUNED[g]) it.def = TUNED[g][it.k];
+const P = {};
+for (const g of GROUPS) { P[g] = {}; for (const it of SCHEMA[g].items) P[g][it.k] = it.def; }
+
+// 把外來的參數物件安全地套進 P（只接受已知的鍵，數值會被夾在範圍內）
+function applyParams(obj, groups) {
+  if (!obj || typeof obj !== 'object') return 0;
+  let n = 0;
+  for (const g of GROUPS) {
+    if (groups && !groups.includes(g)) continue;
+    const src = obj[g]; if (!src || typeof src !== 'object') continue;
+    for (const it of SCHEMA[g].items) {
+      if (!(it.k in src)) continue;
+      let v = src[it.k];
+      if (it.type === 'bool') v = !!v;
+      else if (it.type === 'color') { if (!/^#[0-9a-fA-F]{6}$/.test(v)) continue; }
+      else if (it.type === 'select') { if (!it.options.some(o => o[0] === v)) continue; }
+      else { v = Number(v); if (!isFinite(v)) continue; v = Math.min(it.max, Math.max(it.min, v)); }
+      P[g][it.k] = v; n++;
+    }
+  }
+  dirty.world = dirty.clouds = dirty.jet = true;
+  return n;
+}
+const dirty = { world:true, clouds:true, jet:true };
+function store(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+function load(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } }
+applyParams(load('vfl-params'));
+
+/* ============================================================
+   2. 共用工具
+   ============================================================ */
+let W = 320, H = 220;            // 遊戲畫面解析度（刻意做低，放大後就是像素風）；全螢幕時會依螢幕比例改變
+let B = 392;                     // 偽 3D 用的正方形緩衝區（比畫面大，旋轉時才不會露出邊角）
+let resK = 1;                    // 目前解析度相對於 320x220 的倍率，用來維持同樣的取景
+const N = 1024, MASK = 1023;     // 高度圖大小
+const CELL = 2;                  // 高度圖一格 = 2 個世界單位
+const VOXW = 0.5;                // 戰機一個方塊 = 0.5 個世界單位
+const deg = Math.PI / 180;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const rgb = (r, g, b) => (0xFF000000 | (b << 16) | (g << 8) | r) >>> 0;   // 記憶體中的像素順序是 ABGR
+function hex(h) { return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function h2(x, y) { let n = Math.imul(x, 374761393) + Math.imul(y, 668265263) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; }
+
+/* ============================================================
+   3. 程序地形：用多層噪聲疊出高度圖，再依高度上色
+   ============================================================ */
+// 可無縫拼接的分形噪聲，回傳 0..1
+function fbm(size, basePeriod, octs, gain, rng) {
+  const out = new Float32Array(size * size);
+  let amp = 1, per = basePeriod;
+  for (let o = 0; o < octs && per <= size / 2; o++) {
+    const L = new Float32Array(per * per); for (let i = 0; i < L.length; i++) L[i] = rng();
+    const sc = per / size;
+    for (let y = 0; y < size; y++) {
+      const fy = y * sc, y0 = fy | 0, ty = fy - y0, sy = ty * ty * (3 - 2 * ty), r0 = y0 * per, r1 = ((y0 + 1) % per) * per;
+      for (let x = 0; x < size; x++) {
+        const fx = x * sc, x0 = fx | 0, tx = fx - x0, sx = tx * tx * (3 - 2 * tx), x1 = (x0 + 1) % per;
+        const a = L[r0 + x0], b = L[r0 + x1], c = L[r1 + x0], d = L[r1 + x1];
+        out[y * size + x] += amp * (a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy);
+      }
+    }
+    amp *= gain; per *= 2;
+  }
+  let mn = 1e9, mx = -1e9; for (let i = 0; i < out.length; i++) { if (out[i] < mn) mn = out[i]; if (out[i] > mx) mx = out[i]; }
+  const k = 1 / (mx - mn); for (let i = 0; i < out.length; i++) out[i] = (out[i] - mn) * k;
+  return out;
+}
+const HS = new Uint8Array(N * N);    // 海平面以上的高度 0..255
+const COL = new Uint8Array(N * N);   // 調色盤索引 = 色帶*4 + 明暗
+const CN = 256, CLD = new Uint8Array(CN * CN);   // 雲圖：0 = 沒雲，其餘 = 雲的厚度
+// 每個場景一組調色盤：9 條色帶 × 4 階明暗。色帶 0–2 是水，3 以上的意義依場景而定
+const THEMES = {
+  islands:{ bands:[[22,74,150],[34,110,190],[72,172,216],[236,214,150],[142,202,82],[96,170,62],[44,120,58],[130,128,122],[240,244,248]], haze:[200,226,240], zen:[70,140,220] },
+  //        水 ×3 ｜ 3 馬路 ｜ 4 公園 ｜ 5 混凝土屋頂 ｜ 6 玻璃帷幕 ｜ 7 灰屋頂 ｜ 8 白屋頂
+  city:{ bands:[[20,60,110],[30,84,140],[58,120,170],[58,62,70],[96,150,80],[196,190,180],[84,110,140],[140,142,150],[226,226,220]], haze:[206,214,226], zen:[84,132,200] },
+  //        水 ×3 ｜ 3 黑沙 ｜ 4、5 玄武岩 ｜ 6 岩漿 ｜ 7 熾熱岩 ｜ 8 火山灰
+  volcano:{ bands:[[20,22,40],[30,34,58],[52,56,84],[36,32,34],[58,52,54],[84,72,70],[255,140,30],[150,60,36],[120,112,112]], haze:[214,150,110], zen:[60,48,70], cloud:[[120,112,112],[92,84,88],[64,58,64]] },
+  //        綠洲水 ×3 ｜ 3 淺沙 ｜ 4、5 沙丘 ｜ 6 綠洲植被 ｜ 7 紅岩台地 ｜ 8 台地頂
+  desert:{ bands:[[24,110,140],[40,150,170],[90,196,196],[226,200,150],[236,206,140],[220,180,110],[110,140,70],[176,96,60],[214,150,104]], haze:[244,226,196], zen:[96,156,220] },
+  //        冰海 ×3 ｜ 3 冰緣 ｜ 4、5 雪 ｜ 6、7 裸岩 ｜ 8 亮雪與冰山
+  arctic:{ bands:[[14,40,84],[26,66,120],[70,130,180],[170,220,236],[236,244,250],[206,224,240],[60,66,80],[110,118,130],[255,255,255]], haze:[224,234,244], zen:[110,156,206] }
+};
+const SHADE = [0.74, 0.9, 1, 1.14];
+let HAZE = THEMES.islands.haze, ZENITH = THEMES.islands.zen;
+const NPAL = 72, FOGL = 16;
+const PAL = new Uint32Array(NPAL * FOGL), CPAL = new Uint32Array(3 * FOGL);
+function buildPal(th) {
+  HAZE = th.haze; ZENITH = th.zen;
+  const base = [];
+  for (let s2 = 0; s2 < 2; s2++) for (const b of th.bands) for (const s of SHADE) {
+    const m = s * (s2 ? 0.7 : 1);                       // 後半 36 色是被雲影蓋住的版本
+    base.push([clamp(b[0]*m,0,255), clamp(b[1]*m,0,255), clamp(b[2]*m*(s2?1.08:1),0,255)]);
+  }
+  const cl = th.cloud || [[255,255,255],[226,236,246],[176,198,226]];
+  for (let f = 0; f < FOGL; f++) {
+    const k = f / (FOGL - 1) * 0.94;
+    base.forEach((c, i) => PAL[f*NPAL+i] = rgb(c[0]+(HAZE[0]-c[0])*k|0, c[1]+(HAZE[1]-c[1])*k|0, c[2]+(HAZE[2]-c[2])*k|0));
+    cl.forEach((c, i) => CPAL[f*3+i] = rgb(c[0]+(HAZE[0]-c[0])*k|0, c[1]+(HAZE[1]-c[1])*k|0, c[2]+(HAZE[2]-c[2])*k|0));
+  }
+}
+const BND = new Uint8Array(N * N), SHO = new Uint8Array(N * N);   // 暫存：色帶、指定的明暗（255 = 交給坡度決定）
+
+function genWorld() {
+  const T = P.terrain, theme = THEMES[T.theme] ? T.theme : 'islands', rng = mulberry(T.seed * 7919);
+  buildPal(THEMES[theme]);
+  const v = fbm(N, T.scale, 7, T.rough, rng), moist = fbm(N, T.scale * 2, 3, 0.5, rng);
+  const sea = T.sea, TAU = Math.PI * 2 / N;
+  // 第一輪：依場景規則決定每一格的高度和色帶
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x, r = h2(x, y), m = moist[i], water = v[i] <= sea, e = (v[i] - sea) / (1 - sea);
+    let h = 0, b = 0, so = 255;
+    if (water) { const d = (sea - v[i]) / 0.16; b = d > 1 ? 0 : d > 0.4 ? 1 : 2; if (d < 0.06) so = 3; }
+    if (theme === 'islands') {
+      if (!water) { h = Math.pow(e, 1.4) * 255; b = h < 5 ? 3 : (m > 0.52 && h > 8 && h < 150) ? 6 : h < 55 ? 4 : h < 150 ? 5 : h < 205 ? 7 : 8;
+        if (b === 6 && r < 0.4) { so = 0; h += 4; } }                         // 樹：深色小點並稍微墊高
+    } else if (theme === 'city') {
+      if (!water) {
+        if (e > 0.5) { h = 2 + Math.pow((e - 0.5) * 2, 1.3) * 200; b = 4; if (r < 0.3) so = 0; }      // 郊外的丘陵
+        else if (e < 0.02) { h = 1; b = 7; so = 2; }                                                   // 堤岸
+        else {
+          const gx = x & 15, gy = y & 15;                                     // 每 16 格一個街廓：3 格馬路 + 13 格建地
+          if (gx < 3 || gy < 3) { h = 1; b = 3; so = ((gx === 1 && gy >= 3 && (y & 3) < 2) || (gy === 1 && gx >= 3 && (x & 3) < 2)) ? 3 : 1; }
+          else {
+            const lx = gx - 3, ly = gy - 3, bx = x >> 4, by = y >> 4;
+            if (h2(bx * 7 + 1, by * 13 + 5) < 0.1) { h = 1; b = 4; so = r < 0.35 ? 0 : r < 0.7 ? 2 : 1; }   // 公園
+            else if (lx === 6 || ly === 6) { h = 1; b = 3; so = 0; }                                   // 巷子
+            else {
+              const id = h2(bx * 4 + (lx > 6 ? 1 : 0) + 91, by * 4 + (ly > 6 ? 2 : 0) + 17), dens = clamp((m - 0.3) / 0.4, 0, 1);
+              h = 8 + id * id * (40 + 200 * dens * dens); b = 5 + ((id * 97) | 0) % 4;              // 越靠市中心樓越高
+              const ex = lx % 7, ey = ly % 7; so = (ex === 0 || ey === 0) ? 3 : (ex === 5 || ey === 5) ? 0 : 2;
+              if (ex === 2 && ey === 2 && id > 0.5) { h += 3; so = 1; }                                  // 屋頂設備
+            }
+          }
+        }
+      }
+    } else if (theme === 'volcano') {
+      if (!water) { h = Math.pow(e, 1.15) * 255; const lv = Math.abs(m - 0.5);
+        if (h > 205) { b = 6; so = r < 0.5 ? 3 : 2; h = 205 - (h - 205) * 1.2; }                         // 火山口的岩漿湖
+        else if (h > 190) b = 7;
+        else if (lv < 0.012 && h > 3) { b = 6; so = 3; h = Math.max(1, h - 3); }                        // 岩漿河
+        else if (lv < 0.024 && h > 3) { b = 7; so = r < 0.5 ? 1 : 0; }
+        else b = h < 5 ? 3 : h < 80 ? 4 : h < 150 ? 5 : 8; }
+    } else if (theme === 'desert') {
+      if (!water) { const base = Math.pow(e, 1.6) * 255, dune = 0.5 + 0.5 * Math.sin((x * 31 + y * 13) * TAU + m * 16);
+        if (base > 110) { h = 110 + Math.floor((base - 110) / 36) * 36 + 30; b = (base - 110) % 36 < 5 ? 8 : 7; }   // 階梯狀的紅岩台地
+        else { h = base * 0.5 + dune * dune * 16 * Math.min(1, e * 6); b = e < 0.03 ? 6 : m > 0.55 ? 5 : 4; if (b === 6) so = r < 0.5 ? 0 : 2; } }
+    } else if (theme === 'arctic') {
+      if (water) { if (m > 0.6 && (sea - v[i]) > 0.016) { if (m > 0.8) { h = 3 + (m - 0.8) * 500; b = 8; } else { h = 2; b = m < 0.615 ? 3 : 4; so = 255; } } }   // 浮冰與冰山
+      else { h = Math.pow(e, 1.2) * 255; b = h < 4 ? 3 : h < 90 ? 4 : h < 170 ? 5 : 8; }
+    }
+    HS[i] = clamp(h, 0, 255); BND[i] = b; SHO[i] = so;
+  }
+  // 第二輪：決定明暗。光從西北來：朝西北的坡亮，背光的坡暗
+  const ter = T.terrace;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x, r = h2(x, y); let b = BND[i], sh = SHO[i];
+    if (sh === 255) {
+      if (b < 3) sh = r < 0.03 ? 3 : r < 0.5 ? 2 : 1;                         // 海面：隨機亮點當浪花
+      else {
+        const nw = ((y - 1) & MASK) * N + ((x - 1) & MASK), se = ((y + 1) & MASK) * N + ((x + 1) & MASK), slope = HS[se] - HS[nw];
+        sh = slope > 3 ? 0 : slope < -3 ? 3 : r < 0.5 ? 2 : 1;
+        if (ter > 0) { const a = HS[i] / ter | 0, c = HS[nw] / ter | 0; if (c > a) sh = 0; else if (c < a) sh = 3; }
+        if (theme === 'arctic' && Math.abs(slope) > 14 && HS[i] > 20) b = 7;  // 陡坡積不住雪，露出岩石
+      }
+    }
+    COL[i] = b * 4 + sh;
+  }
+}
+function genClouds() {
+  const T = P.terrain, v = fbm(CN, 6, 4, 0.5, mulberry(T.seed * 104729 + 13));
+  const th = 0.8 - T.cloud * 0.62;
+  for (let i = 0; i < CN * CN; i++) CLD[i] = (T.cloud > 0 && v[i] > th) ? 1 + Math.min(254, (v[i] - th) / 0.2 * 254) : 0;
+}
+const groundZ = (x, y) => HS[(((y / CELL) & MASK) << 10) | ((x / CELL) & MASK)] * P.terrain.hScale;
+
+/* ============================================================
+   4. 體素戰機：用程式定義方塊，再即時旋轉投影成像素圖
+   ============================================================ */
+let VX, VC, VN, NV = 0, ENG = [];     // 方塊座標、顏色、法線、數量、引擎噴口位置
+function buildJet() {
+  const J = P.jet, L = J.len, half = L / 2, m = new Map();
+  const body = hex(J.body), acc = hex(J.accent), can = hex(J.canopy), dark = body.map(c => c * 0.6), noz = [40, 40, 46];
+  const set = (a, b, c, col) => m.set(Math.round(a) + ',' + Math.round(b) + ',' + Math.round(c), col);
+  for (let a = -half; a <= half; a++) {                       // 機身：前端收尖的橢圓截面
+    const u = (a + half) / L, r = u > 0.68 ? 0.5 + 2.1 * (1 - u) / 0.32 : u < 0.12 ? 2.1 : 2.6;
+    const rz = r * 0.72;
+    for (let b = -3; b <= 3; b++) for (let c = -2; c <= 2; c++)
+      if ((b*b)/(r*r) + (c*c)/(rz*rz) <= 1) set(a, b, c, u > 0.93 ? acc : c < 0 ? dark : body);
+  }
+  const aF = half - L * 0.38, aB = -half + L * 0.14, k = 0.25 + J.sweep * 1.5, hs = J.span / 2;   // 主翼：後掠前緣
+  for (let b = -hs; b <= hs; b++) { const le = aF - Math.abs(b) * k; for (let a = aB - Math.abs(b) * 0.12; a <= le; a++) set(a, b, 0, Math.abs(b) > hs - 2 ? acc : body); }
+  const ts = Math.max(4, J.span * 0.3);                        // 水平尾翼
+  for (let b = -ts; b <= ts; b++) for (let a = -half; a <= -half + 5 - Math.abs(b) * 0.7; a++) set(a, b, 0, body);
+  for (const sgn of [-1, 1]) for (let c = 1; c <= J.fin + 1; c++)   // 雙垂直尾翼，略微外傾
+    for (let a = -half + 1; a <= -half + 8 - c * 0.9; a++) set(a, sgn * (2 + c * 0.3), c, c >= J.fin ? acc : body);
+  for (let a = half - L * 0.36; a <= half - L * 0.2; a++) for (let b = -1; b <= 1; b++) set(a, b, 2, can);   // 座艙罩
+  ENG = [[-half, -1.5, 0], [-half, 1.5, 0]];
+  for (const e of ENG) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) set(e[0], e[1] + b * 0.6, c, noz);
+  NV = m.size; VX = new Float32Array(NV * 3); VC = new Float32Array(NV * 3); VN = new Float32Array(NV * 3);
+  let i = 0;
+  for (const [key, col] of m) {
+    const [a, b, c] = key.split(',').map(Number);
+    VX[i*3] = a; VX[i*3+1] = b; VX[i*3+2] = c; VC.set(col, i*3);
+    let nx = 0, ny = 0, nz = 0;                                // 法線：朝向沒有鄰居的方向，用來算明暗
+    if (!m.has((a+1)+','+b+','+c)) nx++; if (!m.has((a-1)+','+b+','+c)) nx--;
+    if (!m.has(a+','+(b+1)+','+c)) ny++; if (!m.has(a+','+(b-1)+','+c)) ny--;
+    if (!m.has(a+','+b+','+(c+1))) nz += 1.5; if (!m.has(a+','+b+','+(c-1))) nz -= 1.5;
+    const l = Math.hypot(nx, ny, nz) || 1; VN[i*3] = nx/l; VN[i*3+1] = ny/l; VN[i*3+2] = (l === 1 && !nx && !ny && !nz) ? 1 : nz/l;
+    i++;
+  }
+}
+// 由航向 yaw、俯仰 pitch、滾轉 roll 算出戰機的三個方向向量（前、右、上）
+function basis(yaw, pitch, roll) {
+  const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch), cr = Math.cos(roll), sr = Math.sin(roll);
+  const F = [cy*cp, sy*cp, sp], R0 = [-sy, cy, 0], U0 = [-cy*sp, -sy*sp, cp];
+  return { F, R: [R0[0]*cr - U0[0]*sr, R0[1]*cr - U0[1]*sr, -U0[2]*sr], U: [R0[0]*sr + U0[0]*cr, R0[1]*sr + U0[1]*cr, U0[2]*cr] };
+}
+// 鏡頭的三個方向向量：朝 yaw 方向看，仰角 e
+function camBasis(yaw, e) {
+  const cy = Math.cos(yaw), sy = Math.sin(yaw), ce = Math.cos(e), se = Math.sin(e);
+  return { F: [cy*ce, sy*ce, se], R: [-sy, cy, 0], U: [-cy*se, -sy*se, ce] };
+}
+const SPS = 224, SP = new Uint32Array(SPS * SPS), SPZ = new Float32Array(SPS * SPS);
+const LIGHT = (() => { const v = [-0.5, -0.6, 0.63], l = Math.hypot(...v); return v.map(c => c / l); })();
+const OUTLINE = rgb(18, 22, 34);
+// 把戰機畫進目標緩衝區。pb 戰機方向、cb 鏡頭方向、scale 每個方塊幾個像素
+function drawJet(buf, TW, TH, cx, cy, scale, pb, cb, thr, t, shadow) {
+  const J = P.jet;
+  scale = Math.min(scale, (SPS - 10) / (Math.max(J.len, J.span) + 26));
+  const M = [];                                                // 3x3 矩陣：模型座標 → 螢幕右、螢幕上、深度
+  for (const c of [cb.R, cb.U, cb.F]) for (const p of [pb.F, pb.R, pb.U]) M.push(c[0]*p[0] + c[1]*p[1] + c[2]*p[2]);
+  SP.fill(0); SPZ.fill(1e9);
+  const k = Math.max(1, Math.ceil(scale)), o0 = SPS / 2 - k / 2, lv = J.shades;
+  const put = (a, b, c, col) => {
+    const sx = (o0 + (M[0]*a + M[1]*b + M[2]*c) * scale) | 0, sy = (o0 - (M[3]*a + M[4]*b + M[5]*c) * scale) | 0, z = M[6]*a + M[7]*b + M[8]*c;
+    if (sx < 1 || sy < 1 || sx + k >= SPS - 1 || sy + k >= SPS - 1) return;
+    for (let y = sy; y < sy + k; y++) for (let x = sx; x < sx + k; x++) { const o = y * SPS + x; if (z < SPZ[o]) { SPZ[o] = z; SP[o] = col; } }
+  };
+  for (let i = 0; i < NV; i++) {
+    const a = VX[i*3], b = VX[i*3+1], c = VX[i*3+2], nx = VN[i*3], ny = VN[i*3+1], nz = VN[i*3+2];
+    const wx = nx*pb.F[0] + ny*pb.R[0] + nz*pb.U[0], wy = nx*pb.F[1] + ny*pb.R[1] + nz*pb.U[1], wz = nx*pb.F[2] + ny*pb.R[2] + nz*pb.U[2];
+    let lum = 0.5 + 0.62 * Math.max(0, wx*LIGHT[0] + wy*LIGHT[1] + wz*LIGHT[2]);
+    lum = Math.round(lum * lv) / lv;                           // 把亮度切成幾階，就是像素風的色階
+    put(a, b, c, rgb(clamp(VC[i*3]*lum,0,255)|0, clamp(VC[i*3+1]*lum,0,255)|0, clamp(VC[i*3+2]*lum,0,255)|0));
+  }
+  if (!shadow && J.flame > 0) {                                // 噴焰：越靠後越細，顏色由黃到紅，長度每幀抖動
+    const fr = Math.floor(t * 30);
+    for (let e = 0; e < ENG.length; e++) {
+      const len = J.flame * (2.5 + thr * 7) * (0.8 + 0.4 * h2(fr, e));
+      for (let j = 1; j <= len; j++) {
+        const f = j / len, col = f < 0.35 ? rgb(255, 240, 150) : f < 0.7 ? rgb(255, 160, 50) : rgb(230, 80, 40);
+        put(ENG[e][0] - j, ENG[e][1], 0, col); if (f < 0.5) { put(ENG[e][0] - j, ENG[e][1], 1, col); put(ENG[e][0] - j, ENG[e][1] + (e ? 1 : -1), 0, col); }
+      }
+    }
+  }
+  const ox = Math.round(cx) - SPS / 2, oy = Math.round(cy) - SPS / 2;
+  for (let y = 1; y < SPS - 1; y++) {
+    const ty = y + oy; if (ty < 0 || ty >= TH) continue;
+    for (let x = 1; x < SPS - 1; x++) {
+      const tx = x + ox; if (tx < 0 || tx >= TW) continue;
+      const o = y * SPS + x, c = SP[o];
+      if (shadow) { if (c) { const p = buf[ty*TW+tx]; buf[ty*TW+tx] = rgb((p & 255) * 0.62, ((p >> 8) & 255) * 0.66, ((p >> 16) & 255) * 0.74); } }
+      else if (c) buf[ty*TW+tx] = c;
+      else if (J.outline && (SP[o-1] || SP[o+1] || SP[o-SPS] || SP[o+SPS])) buf[ty*TW+tx] = OUTLINE;
+    }
+  }
+}
+function line(buf, TW, TH, x0, y0, x1, y1, col, dotted) {
+  x0 |= 0; y0 |= 0; x1 |= 0; y1 |= 0;
+  if (Math.abs(x1 - x0) + Math.abs(y1 - y0) > 600) return;
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx + dy, n = 0;
+  for (;;) {
+    if (x0 >= 0 && x0 < TW && y0 >= 0 && y0 < TH && (!dotted || (n & 1))) buf[y0 * TW + x0] = col;
+    if (x0 === x1 && y0 === y1) break; n++;
+    const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+
+/* ============================================================
+   5. 畫面：俯視、追尾、座艙
+   ============================================================ */
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const bcv = document.createElement('canvas'), bctx = bcv.getContext('2d'), zs = new Float32Array(2048);
+let ovImg, ovBuf, bImg, buf, depth, ybuf;
+// 設定遊戲解析度，並重新配置所有畫面緩衝區
+function setRes(w, h) {
+  W = w; H = h; B = (Math.ceil(Math.hypot(w, h) / 2) + 2) * 2; resK = Math.min(h / 220, w / 320);
+  cv.width = w; cv.height = h; ctx.imageSmoothingEnabled = false;
+  ovImg = ctx.createImageData(w, h); ovBuf = new Uint32Array(ovImg.data.buffer);
+  bcv.width = bcv.height = B; bImg = bctx.createImageData(B, B); buf = new Uint32Array(bImg.data.buffer);
+  depth = new Float32Array(B * B); ybuf = new Int32Array(B);
+}
+setRes(320, 220);
+const WHITE = rgb(255, 255, 255);
+
+// 翼尖尾跡：從錄影紀錄往回取每一幀的翼尖位置
+function trailPts(idx) {
+  const n = P.jet.trail, out = [[], []], hw = P.jet.span / 2 * VOXW * P.jet.size;
+  for (let k = idx; k >= Math.max(0, idx - n); k -= 2) {
+    const r = REC[k], b = basis(r.yaw, r.pitch, r.roll + spinAngle(r));
+    out[0].push([r.x - b.R[0]*hw, r.y - b.R[1]*hw, r.alt - b.R[2]*hw]);
+    out[1].push([r.x + b.R[0]*hw, r.y + b.R[1]*hw, r.alt + b.R[2]*hw]);
+  }
+  return out;
+}
+
+function renderOverhead(s, idx) {
+  const T = P.terrain, upp = T.zoom * (0.6 + s.alt / 300), o = ovBuf;      // upp：一個像素等於幾個世界單位
+  const sh = T.cloudAlt * 0.3, woff = s.t * T.wind;
+  for (let j = 0; j < H; j++) {
+    const wy = s.y + (j - H / 2) * upp, cy = ((wy / CELL) & MASK) << 10, sy = (((wy - sh) / 8) & 255) << 8;
+    let wx = s.x - (W / 2) * upp;
+    for (let i = 0; i < W; i++, wx += upp) {
+      let c = COL[cy | ((wx / CELL) & MASK)];
+      if (CLD[sy | (((wx - sh - woff) / 8) & 255)]) c += 36;                 // 雲影
+      o[j * W + i] = PAL[c];
+    }
+  }
+  const camAlt = s.alt + 240, k = Math.max(0.3, (camAlt - T.cloudAlt) / camAlt), u = upp * k;
+  const clouds = () => {
+    for (let j = 0; j < H; j++) {
+      const wy = s.y + (j - H / 2) * u, r = ((wy / 8) & 255) << 8, r2 = (((wy + 8) / 8) & 255) << 8, r0 = (((wy - 8) / 8) & 255) << 8;
+      for (let i = 0; i < W; i++) {
+        const wx = s.x + (i - W / 2) * u - woff;
+        if (((i + j) & 1) && CLD[r | ((wx / 8) & 255)]) o[j * W + i] = CPAL[!CLD[r2 | (((wx + 8) / 8) & 255)] ? 2 : !CLD[r0 | (((wx - 8) / 8) & 255)] ? 0 : 1];
+      }
+    }
+  };
+  const pb = basis(s.yaw, s.pitch, s.roll + spinAngle(s)), cb = { R: [1,0,0], U: [0,-1,0], F: [0,0,-1] };
+  const sc = 1.5 * P.jet.size, d = Math.min(40, s.alt * 0.16);
+  drawJet(o, W, H, W / 2 + d, H / 2 + d, sc, pb, cb, s.thr, s.t, true);    // 戰機落在地面的影子
+  clouds();                                                                // 俯視時雲畫成半透明網點，戰機永遠在雲上面，才不會看不到地面和自己
+  const tr = trailPts(idx);
+  for (const side of tr) for (let i = 1; i < side.length; i++)
+    line(o, W, H, W/2 + (side[i-1][0] - s.x) / upp, H/2 + (side[i-1][1] - s.y) / upp, W/2 + (side[i][0] - s.x) / upp, H/2 + (side[i][1] - s.y) / upp, WHITE, i > side.length * 0.6);
+  drawJet(o, W, H, W / 2, H / 2, sc, pb, cb, s.thr, s.t, false);
+  ctx.putImageData(ovImg, 0, 0);
+}
+
+// 偽 3D 地形（Voxel Space 算法）：由近到遠一排一排取樣高度圖，每一欄只往上補畫還沒被擋住的部分
+function renderVoxel(cam) {
+  const T = P.terrain, f = 196 * resK / Math.tan(cam.fov * deg / 2), hor = Math.round(B / 2 + Math.tan(cam.pitch) * f);   // f：焦距（像素）
+  for (let y = 0; y < B; y++) {                                              // 天空：依離地平線的距離分成幾條色帶
+    const tt = Math.round(clamp((hor - y) / (B * 0.55), 0, 1) * 10) / 10;
+    buf.fill(rgb(HAZE[0] + (ZENITH[0]-HAZE[0])*tt | 0, HAZE[1] + (ZENITH[1]-HAZE[1])*tt | 0, HAZE[2] + (ZENITH[2]-HAZE[2])*tt | 0), y * B, (y + 1) * B);
+  }
+  depth.fill(1e9); ybuf.fill(B);
+  const fx = Math.cos(cam.yaw), fy = Math.sin(cam.yaw), rx = -fy, ry = fx, tanH = (B / 2) / f;
+  const far = T.far, fogStart = far * (1 - T.fog), hS = T.hScale, woff = cam.t * T.wind / CELL, sh = T.cloudAlt * 0.3 / CELL;
+  let nz = 0; for (let z = 3; z < far && nz < 2048; z += 1 + z * T.detail) zs[nz++] = z;
+  for (let k = 0; k < nz; k++) {
+    const z = zs[k], half = z * tanH, inv = f / z;
+    let px = (cam.x + fx * z - rx * half) / CELL, py = (cam.y + fy * z - ry * half) / CELL;
+    const dx = rx * 2 * half / B / CELL, dy = ry * 2 * half / B / CELL;
+    const pb = (clamp((z - fogStart) / (far - fogStart), 0, 1) * (FOGL - 1) | 0) * NPAL;
+    for (let i = 0; i < B; i++, px += dx, py += dy) {
+      const m = ((py & MASK) << 10) | (px & MASK);
+      let sy = (hor + (cam.z - HS[m] * hS) * inv) | 0;
+      const yb = ybuf[i];
+      if (sy < yb) {
+        if (sy < 0) sy = 0;
+        let c = COL[m]; if (CLD[((((py - sh) >> 2) & 255) << 8) | (((px - sh - woff) >> 2) & 255)]) c += 36;
+        const col = PAL[pb + c];
+        for (let y = sy, o = sy * B + i; y < yb; y++, o += B) { buf[o] = col; depth[o] = z; }
+        ybuf[i] = sy;
+      }
+    }
+  }
+  // 雲：由遠到近畫成漂浮的厚片，比地形近的才畫得上去
+  const cA = T.cloudAlt;
+  for (let k = nz - 1; k >= 0; k -= 1) {
+    const z = zs[k], half = z * tanH, inv = f / z, gap = Math.abs(cam.z - cA) * f * (1 + z * T.detail) / (z * z) + 1;
+    let px = (cam.x + fx * z - rx * half) / CELL - woff, py = (cam.y + fy * z - ry * half) / CELL;
+    const dx = rx * 2 * half / B / CELL, dy = ry * 2 * half / B / CELL;
+    const cp = (clamp((z - fogStart) / (far - fogStart), 0, 1) * (FOGL - 1) | 0) * 3;
+    for (let i = 0; i < B; i++, px += dx, py += dy) {
+      const t = CLD[(((py >> 2) & 255) << 8) | ((px >> 2) & 255)];
+      if (!t) continue;
+      const yT = hor + (cam.z - (cA + t * 0.14)) * inv, yB = hor + (cam.z - (cA - t * 0.03)) * inv;
+      let y0 = Math.min(yT, yB) | 0, y1 = (Math.max(yT, yB) + gap) | 0;
+      const span = y1 - y0 + 1; if (y1 < 0 || y0 >= B) continue;
+      if (y0 < 0) y0 = 0; if (y1 >= B) y1 = B - 1;
+      const top = Math.min(yT, yB);
+      for (let y = y0, o = y0 * B + i; y <= y1; y++, o += B) if (depth[o] > z) { const fr = (y - top) / span; buf[o] = CPAL[cp + (fr < 0.5 ? 0 : fr < 0.8 ? 1 : 2)]; }
+    }
+  }
+  return { f, hor, fx, fy, rx, ry };
+}
+// 把世界座標投影到緩衝區座標
+function project(pr, cam, p) {
+  const dx = p[0] - cam.x, dy = p[1] - cam.y, zf = dx * pr.fx + dy * pr.fy;
+  if (zf < 2) return null;
+  return [B / 2 + (dx * pr.rx + dy * pr.ry) * pr.f / zf, pr.hor + (cam.z - p[2]) * pr.f / zf, zf];
+}
+function blit(roll, cxv, cyv) {
+  bctx.putImageData(bImg, 0, 0);
+  ctx.save(); ctx.translate(cxv, cyv); ctx.rotate(-roll); ctx.drawImage(bcv, -B / 2, -B / 2); ctx.restore();
+}
+function renderChase(s, idx) {
+  const T = P.terrain, cam = { yaw: s.camYaw, fov: T.fov, t: s.t };
+  cam.x = s.x - Math.cos(s.camYaw) * T.camDist; cam.y = s.y - Math.sin(s.camYaw) * T.camDist;
+  cam.z = Math.max(s.alt + T.camH, groundZ(cam.x, cam.y) + 6);
+  cam.pitch = -Math.atan(T.camH / T.camDist) * 0.6 + s.pitch * 0.5;
+  const pr = renderVoxel(cam), rollT = s.roll + spinAngle(s);
+  const tr = trailPts(idx);
+  for (const side of tr) { let prev = null; for (let i = 0; i < side.length; i++) { const q = project(pr, cam, side[i]); if (q && prev) line(buf, B, B, prev[0], prev[1], q[0], q[1], WHITE, i > side.length * 0.6); prev = q; } }
+  const q = project(pr, cam, [s.x, s.y, s.alt]);
+  if (q) drawJet(buf, B, B, q[0], q[1], VOXW * pr.f / q[2] * P.jet.size, basis(s.yaw, s.pitch, rollT), camBasis(cam.yaw, Math.atan2(s.alt - cam.z, q[2])), s.thr, s.t, false);
+  blit(s.roll * T.camRoll, W / 2, H / 2);
+}
+const rcv = document.createElement('canvas'); rcv.width = rcv.height = 40;
+const rctx = rcv.getContext('2d'), rImg = rctx.createImageData(40, 40), rBuf = new Uint32Array(rImg.data.buffer);
+function renderCockpit(s) {
+  const C = P.cockpit, cam = { x: s.x, y: s.y, z: s.alt + 1, yaw: s.yaw, pitch: s.pitch, fov: C.fov, t: s.t };
+  const pr = renderVoxel(cam), rollT = s.roll + spinAngle(s), f = pr.f;
+  const panelH = Math.round(H * C.panel), py = H - panelH, cx = W / 2, vc = Math.round(py * 0.56);
+  const a = C.shake * s.thr;
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  blit(rollT, cx + Math.sin(s.t * 47) * a, vc + Math.sin(s.t * 61 + 1) * a);
+  ctx.font = '7px monospace'; ctx.textBaseline = 'middle'; ctx.lineWidth = 1;
+  if (C.hud) {                                                               // HUD：俯仰刻度會跟著地平線轉動
+    ctx.save(); ctx.beginPath(); ctx.rect(44, 10, W - 88, py - 16); ctx.clip();
+    ctx.strokeStyle = ctx.fillStyle = C.hudColor;
+    ctx.save(); ctx.translate(cx, vc); ctx.rotate(-rollT);
+    for (let d = -90; d <= 90; d += C.ladder) {
+      const y = Math.tan(s.pitch - d * deg) * f; if (Math.abs(y) > 70 || Math.abs(s.pitch - d * deg) > 1.2) continue;
+      const w = d === 0 ? 52 : 24; ctx.beginPath(); ctx.moveTo(-w, y + .5); ctx.lineTo(-9, y + .5); ctx.moveTo(9, y + .5); ctx.lineTo(w, y + .5); ctx.stroke();
+      if (d !== 0) { ctx.textAlign = 'left'; ctx.fillText(String(d), w + 3, y); }
+    }
+    ctx.restore();
+    ctx.beginPath(); ctx.moveTo(cx - 8, vc + .5); ctx.lineTo(cx - 3, vc + .5); ctx.lineTo(cx, vc + 3.5); ctx.lineTo(cx + 3, vc + .5); ctx.lineTo(cx + 8, vc + .5); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.fillText('HDG ' + String(Math.round(((s.yaw / deg + 90) % 360 + 360) % 360)).padStart(3, '0'), cx, 16);
+    ctx.textAlign = 'left'; ctx.fillText('SPD ' + Math.round(s.speed), 48, vc);
+    ctx.textAlign = 'right'; ctx.fillText('ALT ' + Math.round(s.alt), W - 48, vc);
+    ctx.restore();
+  }
+  if (C.canopy) {
+    ctx.strokeStyle = '#1b212b'; ctx.lineWidth = 9; ctx.beginPath(); ctx.ellipse(cx, py + 30, W * 0.55, py + 26, 0, Math.PI, 2 * Math.PI); ctx.stroke();
+    ctx.strokeStyle = '#3a4352'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(cx, py + 30, W * 0.55 - 5, py + 21, 0, Math.PI, 2 * Math.PI); ctx.stroke();
+  }
+  // 儀表板
+  ctx.fillStyle = '#232933'; ctx.beginPath(); ctx.moveTo(0, py + 8); ctx.quadraticCurveTo(cx, py - 10, W, py + 8); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
+  ctx.strokeStyle = '#4a5464'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, py + 8); ctx.quadraticCurveTo(cx, py - 10, W, py + 8); ctx.stroke();
+  const iy = py + panelH * 0.56, R = Math.min(24, panelH * 0.34);
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, iy, R, 0, 7); ctx.clip();          // 姿態儀：藍色是天、棕色是地
+  ctx.translate(cx, iy); ctx.rotate(-rollT); const off = clamp(s.pitch / (40 * deg), -1, 1) * R;
+  ctx.fillStyle = '#4aa3e8'; ctx.fillRect(-R * 2, -R * 3 + off, R * 4, R * 3); ctx.fillStyle = '#96683a'; ctx.fillRect(-R * 2, off, R * 4, R * 3);
+  ctx.fillStyle = '#fff'; ctx.fillRect(-R * 2, off - .5, R * 4, 1); ctx.restore();
+  ctx.strokeStyle = '#aeb8c6'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, iy, R, 0, 7); ctx.stroke();
+  ctx.fillStyle = '#f2b632'; ctx.fillRect(cx - 9, iy - .5, 6, 1); ctx.fillRect(cx + 3, iy - .5, 6, 1); ctx.fillRect(cx - 1, iy - 1, 2, 2);
+  const gauge = (x, frac, label) => {
+    const r = R * 0.72; ctx.fillStyle = '#0d1117'; ctx.beginPath(); ctx.arc(x, iy, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#aeb8c6'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, iy, r, 0, 7); ctx.stroke();
+    const an = (-225 + 270 * clamp(frac, 0, 1)) * deg; ctx.strokeStyle = '#ff7a3c'; ctx.beginPath(); ctx.moveTo(x, iy); ctx.lineTo(x + Math.cos(an) * (r - 3), iy + Math.sin(an) * (r - 3)); ctx.stroke();
+    ctx.fillStyle = '#aeb8c6'; ctx.textAlign = 'center'; ctx.fillText(label, x, iy + r + 6);
+  };
+  gauge(cx - 58, s.speed / P.flight.boost, 'SPD'); gauge(cx + 58, s.alt / P.flight.ceiling, 'ALT');
+  const cs = Math.cos(s.yaw), sn = Math.sin(s.yaw), ru = C.radar / 20;       // 雷達：機頭朝上的小地圖
+  for (let j = 0; j < 40; j++) for (let i = 0; i < 40; i++) {
+    const u = (i - 20) * ru, v = (20 - j) * ru, wx = s.x + cs * v - sn * u, wy = s.y + sn * v + cs * u;
+    const p = PAL[COL[(((wy / CELL) & MASK) << 10) | ((wx / CELL) & MASK)]];
+    rBuf[j * 40 + i] = rgb((p & 255) * 0.3, 60 + ((p >> 8) & 255) * 0.6, (p & 255) * 0.3);
+  }
+  rctx.putImageData(rImg, 0, 0);
+  const rx0 = Math.max(6, cx - 140), ry0 = Math.round(iy - 20);
+  ctx.drawImage(rcv, rx0, ry0); ctx.strokeStyle = '#aeb8c6'; ctx.strokeRect(rx0 - .5, ry0 - .5, 41, 41); ctx.fillStyle = '#fff'; ctx.fillRect(rx0 + 19, ry0 + 19, 2, 2);
+  const mx = Math.min(W - 48, cx + 98); ctx.fillStyle = '#0b1a12'; ctx.fillRect(mx, ry0, 42, 40); ctx.strokeRect(mx - .5, ry0 - .5, 43, 41);
+  ctx.fillStyle = '#5dff8a'; ctx.textAlign = 'left';
+  ctx.fillText('ALT ' + Math.round(s.alt), mx + 3, ry0 + 8); ctx.fillText('SPD ' + Math.round(s.speed), mx + 3, ry0 + 18); ctx.fillText('THR ' + Math.round(s.thr * 100), mx + 3, ry0 + 28);
+  ctx.fillStyle = '#ff7a3c'; ctx.fillRect(mx + 3, ry0 + 33, 36 * s.thr, 3);
+  ctx.strokeStyle = '#0b0e13'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx, H + 2); ctx.lineTo(cx + (s.ix || 0) * 9, H - 9 + (s.iy || 0) * 3); ctx.stroke();   // 操縱桿跟著輸入擺動
+  ctx.fillStyle = '#444d5c'; ctx.fillRect(cx + (s.ix || 0) * 9 - 3, H - 13 + (s.iy || 0) * 3, 6, 5);
+}
+function render(s, idx) {
+  if (view === 0) renderOverhead(s, idx); else if (view === 1) renderChase(s, idx); else renderCockpit(s);
+}
+
+/* ============================================================
+   6. 飛行模型：每一幀用輸入更新狀態
+   ============================================================ */
+function newState() {
+  return { x: 600, y: 700, alt: 110, yaw: -0.6, pitch: 0, roll: 0, spinT: 0, spinDir: 1, thr: 0, speed: P.flight.cruise, camYaw: -0.6, t: 0 };
+}
+const STATE_KEYS = Object.keys(newState());
+const spinAngle = s => s.spinT > 0 ? s.spinDir * 2 * Math.PI * (s.spinT * s.spinT * (3 - 2 * s.spinT)) : 0;
+function step(s, inp, dt) {
+  const F = P.flight, dz = F.dead;
+  const shape = v => Math.abs(v) < dz ? 0 : (v - Math.sign(v) * dz) / (1 - dz);
+  const ix = shape(inp.x), iy = shape(inp.y);
+  s.roll += (ix * F.maxBank * deg - s.roll) * Math.min(1, F.rollRate * dt);        // 傾角追向輸入
+  if (inp.roll && s.spinT === 0) { s.spinT = 1e-4; s.spinDir = s.roll < 0 ? -1 : 1; }
+  if (s.spinT > 0) { s.spinT += dt / F.barrel; if (s.spinT >= 1) s.spinT = 0; }
+  s.yaw += Math.sin(s.roll) * F.turnRate * dt;                                     // 傾斜越多轉得越快
+  s.pitch += (-iy * F.maxPitch * deg - s.pitch) * Math.min(1, F.pitchRate * dt);
+  s.thr += ((inp.thrust ? 1 : 0) - s.thr) * Math.min(1, F.accel * dt);
+  s.speed = F.cruise + (F.boost - F.cruise) * s.thr;
+  const cp = Math.cos(s.pitch);
+  s.x += Math.cos(s.yaw) * cp * s.speed * dt; s.y += Math.sin(s.yaw) * cp * s.speed * dt; s.alt += Math.sin(s.pitch) * s.speed * dt;
+  if (s.alt > F.ceiling) { s.alt = F.ceiling; if (s.pitch > 0) s.pitch = 0; }
+  const g = groundZ(s.x, s.y) + F.minClear;
+  if (s.alt < g) { s.alt += (g - s.alt) * Math.min(1, 8 * dt); if (s.pitch < 0.12) s.pitch = 0.12; }   // 太低就自動拉起（地面優先於高度上限）
+  let d = s.yaw - s.camYaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+  s.camYaw += d * Math.min(1, P.terrain.camLag * dt);                              // 追尾鏡頭慢一點跟上
+  s.t += dt;
+}
+
+/* ============================================================
+   7. 錄影、倒帶與輸入
+   ============================================================ */
+const REC = [], MAXREC = 1200;      // 保留最近 1200 幀（約 20 秒）
+let S = newState(), mode = 'live', cursor = 0, playDir = 0, speed = 1, view = 1, tab = 'play', autopilot = false;
+function snap(s, inp, dt) { const r = {}; for (const k of STATE_KEYS) r[k] = s[k]; r.ix = inp.x; r.iy = inp.y; r.ith = inp.thrust; r.irl = inp.roll; r.dt = dt; return r; }
+function restore(r) { const s = {}; for (const k of STATE_KEYS) s[k] = r[k]; return s; }
+function enterReview(dir) { if (!REC.length) return; if (mode === 'live') cursor = REC.length - 1; mode = 'review'; playDir = dir; }
+function resume() { if (mode !== 'review') return; REC.length = Math.floor(cursor) + 1; S = restore(REC[REC.length - 1]); mode = 'live'; }
+// 用錄下來的同一組輸入，以目前的操控參數重新模擬整段
+function resim() {
+  if (REC.length < 2) return;
+  const s = restore(REC[0]);
+  for (let i = 1; i < REC.length; i++) { const r = REC[i], inp = { x: r.ix, y: r.iy, thrust: r.ith, roll: r.irl }; step(s, inp, r.dt); REC[i] = snap(s, inp, r.dt); }
+  if (mode === 'live') S = restore(REC[REC.length - 1]);
+}
+const ptr = { x: 0, y: 0, thrust: false, roll: false }, keys = {};
+let btnThrust = false, downAt = 0, downXY = null;
+function setPtr(e) { const r = cv.getBoundingClientRect(); ptr.x = clamp((e.clientX - r.left - r.width / 2) / (r.width / 2), -1, 1); ptr.y = clamp((e.clientY - r.top - r.height / 2) / (r.height / 2), -1, 1); }
+cv.addEventListener('pointerdown', e => { e.preventDefault(); cv.setPointerCapture(e.pointerId); setPtr(e); downAt = performance.now(); downXY = [e.clientX, e.clientY]; if (e.pointerType === 'mouse') ptr.thrust = true; setAuto(false); });
+cv.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons) { if (e.pointerType === 'mouse' && autopilot) return; setPtr(e); } });
+function ptrUp(e) {
+  ptr.thrust = false;
+  if (downXY && performance.now() - downAt < 220 && Math.hypot(e.clientX - downXY[0], e.clientY - downXY[1]) < 12) ptr.roll = true;   // 快點一下 = 翻滾
+  if (e.pointerType !== 'mouse') { ptr.x = 0; ptr.y = 0; }
+  downXY = null;
+}
+cv.addEventListener('pointerup', ptrUp); cv.addEventListener('pointercancel', ptrUp);
+addEventListener('keydown', e => {
+  if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) && e.target.type !== 'range' && e.target.type !== 'checkbox') return;
+  keys[e.code] = true;
+  if (e.code === 'Space') { e.preventDefault(); cycleView(); }
+  if (e.code === 'KeyR') ptr.roll = true;
+  if (e.code === 'KeyP') { if (mode === 'live') enterReview(0); else resume(); }
+  if (/^Arrow/.test(e.code) && e.target.type !== 'range') e.preventDefault();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+function readInput(t) {
+  if (autopilot) return { x: Math.sin(t * 0.45) * 0.7, y: Math.sin(t * 0.27 + 1) * 0.35, thrust: Math.sin(t * 0.13) > 0.5, roll: (t % 9) < 0.02 };
+  let x = ptr.x, y = ptr.y;
+  const kx = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0), ky = (keys.ArrowDown || keys.KeyS ? 1 : 0) - (keys.ArrowUp || keys.KeyW ? 1 : 0);
+  if (kx || ky) { x = kx; y = ky; }
+  const inp = { x, y, thrust: ptr.thrust || btnThrust || !!keys.ShiftLeft || !!keys.ShiftRight, roll: ptr.roll };
+  ptr.roll = false; return inp;
+}
+
+/* ============================================================
+   8. 主迴圈：讀輸入 → 更新狀態 → 重畫畫面
+   ============================================================ */
+const $ = id => document.getElementById(id);
+let last = performance.now();
+function frame(now) {
+  const real = Math.min(0.05, (now - last) / 1000); last = now;
+  if (dirty.world) { genWorld(); dirty.world = false; }
+  if (dirty.clouds) { genClouds(); dirty.clouds = false; }
+  if (dirty.jet) { buildJet(); dirty.jet = false; drawJetPreview(); }
+  let cur, idx;
+  if (mode === 'live') {
+    const dt = real * speed, inp = readInput(S.t);
+    step(S, inp, dt); REC.push(snap(S, inp, dt)); if (REC.length > MAXREC) REC.shift();
+    idx = REC.length - 1; cur = REC[idx];
+  } else {
+    if (playDir) { cursor = clamp(cursor + playDir * speed, 0, REC.length - 1); if (cursor === 0 || cursor === REC.length - 1) playDir = 0; }
+    idx = Math.floor(cursor); cur = REC[idx];
+  }
+  render(cur, idx); updateUI(cur, idx);
+  requestAnimationFrame(frame);
+}
+const sg = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(0).padStart(2, '0');
+function updateUI(s, idx) {
+  const sc = $('scrub'); sc.max = Math.max(0, REC.length - 1); if (document.activeElement !== sc || mode === 'live') sc.value = idx;
+  $('frameNo').textContent = (idx + 1) + '/' + REC.length;
+  const b = $('badge'); b.textContent = mode === 'live' ? (autopilot ? '即時・自動' : '即時') : playDir < 0 ? '倒帶' : playDir > 0 ? '重播' : '暫停'; b.classList.toggle('rev', mode !== 'live');
+  $('bPause').classList.toggle('on', mode === 'review' && !playDir);
+  if (tab !== 'play' || fs) $('readout').textContent =
+    '時間 ' + s.t.toFixed(2) + ' 秒　滾轉 ' + sg(s.roll / deg) + '°　俯仰 ' + sg(s.pitch / deg) + '°　航向 ' + String(Math.round(((s.yaw / deg + 90) % 360 + 360) % 360)).padStart(3, '0') + '°\n' +
+    '速度 ' + String(Math.round(s.speed)).padStart(3) + '　高度 ' + String(Math.round(s.alt)).padStart(3) + '　輸入 X ' + (s.ix >= 0 ? '+' : '−') + Math.abs(s.ix).toFixed(2) + ' Y ' + (s.iy >= 0 ? '+' : '−') + Math.abs(s.iy).toFixed(2) + '　推進 ' + (s.ith ? '開' : '關');
+}
+
+/* ============================================================
+   9. 介面：分頁、播放列、參數面板、參數檔
+   ============================================================ */
+const VIEW_NAMES = ['俯視', '追尾', '座艙'];
+function cycleView() { view = (view + 1) % 3; $('bView').textContent = '視角：' + VIEW_NAMES[view]; }
+function setAuto(v) { autopilot = v; $('auto').checked = v; }
+$('auto').addEventListener('change', e => setAuto(e.target.checked));
+$('bView').addEventListener('click', cycleView);
+$('bRoll').addEventListener('click', () => { ptr.roll = true; });
+const bt = $('bThrust');
+bt.addEventListener('pointerdown', e => { e.preventDefault(); bt.setPointerCapture(e.pointerId); btnThrust = true; bt.classList.add('on'); });
+for (const ev of ['pointerup', 'pointercancel']) bt.addEventListener(ev, () => { btnThrust = false; bt.classList.remove('on'); });
+$('bRew').addEventListener('click', () => enterReview(-1));
+$('bFwd').addEventListener('click', () => enterReview(1));
+$('bPause').addEventListener('click', () => enterReview(0));
+$('bPrev').addEventListener('click', () => { enterReview(0); cursor = Math.max(0, Math.floor(cursor) - 1); });
+$('bNext').addEventListener('click', () => { enterReview(0); cursor = Math.min(REC.length - 1, Math.floor(cursor) + 1); });
+$('bLive').addEventListener('click', resume);
+$('scrub').addEventListener('input', e => { enterReview(0); cursor = +e.target.value; });
+$('speed').addEventListener('input', e => { speed = +e.target.value; $('speedV').textContent = speed.toFixed(2) + '×'; });
+
+function showTab(name) {
+  if (!document.querySelector('[data-tab="' + name + '"]')) name = 'play';
+  tab = name;
+  for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-selected', b.dataset.tab === name);
+  for (const s of document.querySelectorAll('main section')) s.hidden = s.id !== 'tab-' + name;
+  $('app').classList.toggle('tune', name !== 'play');
+  if (SCHEMA[name]) { view = SCHEMA[name].view; }
+  $('bView').textContent = '視角：' + VIEW_NAMES[view];
+  setAuto(name !== 'play');
+  if (name === 'play' && mode === 'review') resume();
+  if (name === 'params') refreshExport();
+  if (name === 'jet') drawJetPreview();
+}
+for (const b of document.querySelectorAll('.tabs button')) b.addEventListener('click', () => { try { location.hash = b.dataset.tab; } catch (e) {} showTab(b.dataset.tab); });
+addEventListener('hashchange', () => showTab(location.hash.slice(1) || 'play'));
+
+function fmt(it, v) { const d = (String(it.step).split('.')[1] || '').length; return Number(v).toFixed(d) + (it.unit || ''); }
+function saveParams() { store('vfl-params', P); }
+function buildPanel(g) {
+  const sc = SCHEMA[g], el = $('tab-' + g);
+  let h = '<h2>' + sc.title + '參數</h2><p class="note">' + sc.intro + '</p>' +
+    '<details class="advice" open><summary>建議的調整順序</summary><ol>' + sc.advice.map(a => '<li>' + a + '</li>').join('') + '</ol></details>';
+  if (g === 'jet') h += '<canvas id="jetprev" width="320" height="120" aria-label="滾轉角度預覽"></canvas>';
+  h += '<div class="presets"><span>預設組合</span>' + Object.keys(sc.presets).map(n => '<button class="btn" data-preset="' + n + '">' + n + '</button>').join('');
+  if (g === 'flight') h += '<button class="btn" id="bResim">用目前參數重算這段</button>';
+  h += '</div><div class="rows">';
+  for (const it of sc.items) {
+    const id = 'p-' + g + '-' + it.k;
+    h += '<div class="row"><label for="' + id + '">' + it.label + '</label>';
+    if (it.type === 'bool') h += '<input type="checkbox" id="' + id + '">';
+    else if (it.type === 'color') h += '<input type="color" id="' + id + '">';
+    else if (it.type === 'select') h += '<select id="' + id + '">' + it.options.map(o => '<option value="' + o[0] + '">' + o[1] + '</option>').join('') + '</select>';
+    else h += '<output id="' + id + '-o"></output><input type="range" id="' + id + '" min="' + it.min + '" max="' + it.max + '" step="' + it.step + '">';
+    h += '<p class="tip">' + it.tip + '</p></div>';
+  }
+  el.innerHTML = h + '</div>';
+  for (const it of sc.items) {
+    const inp = $('p-' + g + '-' + it.k);
+    const commit = () => {
+      P[g][it.k] = it.type === 'bool' ? inp.checked : (it.type === 'color' || it.type === 'select') ? inp.value : +inp.value;
+      if (it.regen) dirty[it.regen] = true; saveParams();
+    };
+    if (it.type === 'bool' || it.type === 'select') inp.addEventListener('change', commit);
+    else if (it.type === 'color') inp.addEventListener('input', commit);
+    else {
+      inp.addEventListener('input', () => { $('p-' + g + '-' + it.k + '-o').textContent = fmt(it, inp.value); if (it.regen !== 'world') commit(); });
+      inp.addEventListener('change', commit);       // 重建地形比較花時間，放開滑桿才做
+    }
+  }
+  for (const b of el.querySelectorAll('[data-preset]')) b.addEventListener('click', () => applyPreset(g, b.dataset.preset));
+  if (g === 'flight') $('bResim').addEventListener('click', resim);
+  syncPanel(g);
+}
+// 套用一組預設：先回到該分頁的預設值，再蓋上這組預設指定的項目
+function applyPreset(g, name) {
+  const sc = SCHEMA[g], o = {}; for (const it of sc.items) o[it.k] = it.def; Object.assign(o, sc.presets[name]);
+  applyParams({ [g]: o }); syncPanel(g); saveParams();
+}
+function syncPanel(g) {
+  for (const it of SCHEMA[g].items) {
+    const inp = $('p-' + g + '-' + it.k), v = P[g][it.k];
+    if (it.type === 'bool') inp.checked = v; else { inp.value = v; if (!it.type) $('p-' + g + '-' + it.k + '-o').textContent = fmt(it, v); }
+  }
+}
+// 戰機分頁的預覽：上排從後方看、下排從上方看，各五個滾轉角度
+const jpBuf = new Uint32Array(320 * 120);
+function drawJetPreview() {
+  const c = $('jetprev'); if (!c || !NV) return;
+  const g = c.getContext('2d'), img = g.createImageData(320, 120), out = new Uint32Array(img.data.buffer);
+  jpBuf.fill(rgb(27, 42, 61));
+  const rear = camBasis(0, -0.3), top = { R: [0, 1, 0], U: [1, 0, 0], F: [0, 0, -1] };
+  [-60, -30, 0, 30, 60].forEach((a, i) => {
+    drawJet(jpBuf, 320, 120, 32 + i * 64, 30, 1.9, basis(0, 0, a * deg), rear, 0.3, 0, false);
+    drawJet(jpBuf, 320, 120, 32 + i * 64, 88, 1.9, basis(0, 0, a * deg), top, 0.3, 0, false);
+  });
+  out.set(jpBuf); g.putImageData(img, 0, 0);
+  g.font = '8px monospace'; g.fillStyle = '#8fa3bb'; g.textAlign = 'center';
+  [-60, -30, 0, 30, 60].forEach((a, i) => g.fillText((a > 0 ? '+' : '') + a + '°', 32 + i * 64, 117));
+}
+// 參數檔
+const say = t => { $('msg').textContent = t; };
+function pickedGroups() { return GROUPS.filter(g => $('g-' + g).checked); }
+function refreshExport() { const o = {}; for (const g of pickedGroups()) o[g] = P[g]; $('exp').value = JSON.stringify(o, null, 1); renderScenes(); }
+function syncAll() { for (const g of GROUPS) syncPanel(g); saveParams(); refreshExport(); }
+for (const g of GROUPS) $('g-' + g).addEventListener('change', refreshExport);
+$('bCopy').addEventListener('click', () => {
+  const ta = $('exp');
+  const done = () => say('已複製參數 JSON。');
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done, () => { ta.select(); say('無法自動複製，文字已全選，請手動複製。'); });
+  else { ta.select(); say('文字已全選，請手動複製。'); }
+});
+$('bImport').addEventListener('click', () => {
+  let o; try { o = JSON.parse($('imp').value); } catch (e) { say('匯入失敗：貼上的內容不是有效的 JSON，請確認是從「匯出」完整複製的。'); return; }
+  const n = applyParams(o, pickedGroups()); syncAll(); say(n ? '已套用 ' + n + ' 個參數。' : '沒有找到可套用的參數，請確認勾選的套用範圍。');
+});
+$('bResetAll').addEventListener('click', () => { const o = {}; for (const g of GROUPS) { o[g] = {}; for (const it of SCHEMA[g].items) o[g][it.k] = it.def; } applyParams(o, pickedGroups()); syncAll(); say('已還原勾選範圍的預設值。'); });
+let scenes = load('vfl-scenes') || {};
+function renderScenes() {
+  const el = $('scenes'), names = Object.keys(scenes);
+  el.innerHTML = names.length ? '' : '<p class="note" style="margin:0">還沒有儲存的情境。</p>';
+  for (const n of names) {
+    const d = document.createElement('div'); d.className = 'scene';
+    const b = document.createElement('b'); b.textContent = n;
+    const a = document.createElement('button'); a.className = 'btn'; a.textContent = '套用';
+    a.addEventListener('click', () => { const k = applyParams(scenes[n], pickedGroups()); syncAll(); say('已套用情境「' + n + '」的 ' + k + ' 個參數。'); });
+    const x = document.createElement('button'); x.className = 'btn'; x.textContent = '刪除';
+    x.addEventListener('click', () => { delete scenes[n]; store('vfl-scenes', scenes); renderScenes(); });
+    d.append(b, a, x); el.append(d);
+  }
+}
+$('bSaveScene').addEventListener('click', () => {
+  const n = $('sceneName').value.trim(); if (!n) { say('請先輸入情境名稱。'); return; }
+  scenes[n] = JSON.parse(JSON.stringify(P)); store('vfl-scenes', scenes); renderScenes(); say('已儲存情境「' + n + '」。');
+});
+
+// 全螢幕：畫面鋪滿可用範圍，解析度依螢幕比例調整（橫向時左右看得更廣）
+let fs = false, nativeFs = false;
+function fitRes() {
+  let w = 320, h = 220;
+  if (fs) {
+    const r = $('stage').getBoundingClientRect(), a = r.width / Math.max(1, r.height);
+    if (a >= 1) { h = 220; w = Math.min(520, Math.round(220 * a / 2) * 2); } else { w = 240; h = Math.min(520, Math.round(240 / a / 2) * 2); }
+  }
+  if (w !== W || h !== H) setRes(w, h);
+}
+function setFs(on) {
+  fs = on; $('app').classList.toggle('fs', on); $('bFs').textContent = on ? '離開全螢幕' : '全螢幕';
+  try {
+    if (on) { const el = document.documentElement, p = el.requestFullscreen && el.requestFullscreen(); if (p && p.catch) p.catch(() => {}); }
+    else if (document.fullscreenElement) { const p = document.exitFullscreen(); if (p && p.catch) p.catch(() => {}); }
+  } catch (e) {}
+  fitRes(); setTimeout(fitRes, 350);
+}
+$('bFs').addEventListener('click', () => setFs(!fs));
+document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement) nativeFs = true; else if (nativeFs) { nativeFs = false; if (fs) setFs(false); } fitRes(); });
+addEventListener('resize', fitRes);
+addEventListener('keydown', e => { if (e.code === 'Escape' && fs) setFs(false); });
+for (const n of Object.keys(SCHEMA.terrain.presets)) {
+  const b = document.createElement('button'); b.className = 'btn'; b.textContent = n;
+  b.addEventListener('click', () => applyPreset('terrain', n)); $('sceneBtns').append(b);
+}
+
+/* ============================================================
+   10. 背景音樂：用 WebAudio 即時合成的原創循環樂句（沒有載入任何音檔）
+   每 16 分音符排程一次：大鼓、小鼓、hi-hat、貝斯、主旋律
+   ============================================================ */
+const BGM = (() => {
+  let ac = null, master = null, noise = null, timer = null, nextT = 0, stepI = 0, on = false;
+  const stepDur = 60 / 126 / 4, hz = n => 440 * Math.pow(2, (n - 69) / 12);
+  const ROOTS = [40, 36, 43, 38, 40, 36, 43, 47];           // 八小節的貝斯根音
+  const LEAD = [                                            // 八小節主旋律，每小節 16 格，0 = 休止
+    [64,0,67,0, 71,0,0,69, 0,67,0,0, 64,0,62,0], [60,0,64,0, 67,0,0,72, 0,71,0,0, 67,0,0,0],
+    [62,0,67,0, 71,0,0,74, 0,71,0,67, 0,0,62,0], [66,0,69,0, 74,0,0,72, 0,69,0,0, 66,0,64,0],
+    [76,0,0,74, 0,71,0,0, 67,0,71,0, 74,0,0,0],  [72,0,0,71, 0,67,0,0, 64,0,67,0, 72,0,0,0],
+    [74,0,0,71, 0,67,0,0, 62,0,67,0, 71,0,74,0], [78,0,0,75, 0,71,0,0, 75,0,78,0, 83,0,0,0]];
+  function tone(type, f, t, dur, vol, f2) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function hit(t, dur, vol, hp) {
+    const s = ac.createBufferSource(), g = ac.createGain(), f = ac.createBiquadFilter();
+    s.buffer = noise; f.type = 'highpass'; f.frequency.value = hp;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.02);
+  }
+  function schedule() {
+    while (nextT < ac.currentTime + 0.25) {
+      const bar = (stepI >> 4) % 8, st = stepI & 15, t = nextT;
+      if (st % 4 === 0) tone('sine', 130, t, 0.16, 0.5, 40);                      // 大鼓
+      if (st === 4 || st === 12) hit(t, 0.12, 0.22, 1500);                         // 小鼓
+      if (st % 2 === 0) hit(t, 0.03, 0.07, 7000);                                  // hi-hat
+      if (st % 2 === 0) tone('sawtooth', hz(ROOTS[bar] + (st === 6 || st === 14 ? 12 : 0)), t, stepDur * 1.8, 0.13);   // 貝斯
+      const n = LEAD[bar][st]; if (n) { tone('square', hz(n), t, stepDur * 2.6, 0.07); tone('square', hz(n) * 1.006, t, stepDur * 2.6, 0.05); }
+      nextT += stepDur; stepI++;
+    }
+  }
+  function start() {
+    if (!ac) {
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
+      ac = new AC(); master = ac.createGain(); master.gain.value = 0.5; master.connect(ac.destination);
+      noise = ac.createBuffer(1, ac.sampleRate * 0.3, ac.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (ac.resume) ac.resume();
+    nextT = ac.currentTime + 0.06; timer = setInterval(schedule, 60); on = true; return true;
+  }
+  function stop() { clearInterval(timer); on = false; if (ac && ac.suspend) ac.suspend(); }
+  document.addEventListener('visibilitychange', () => { if (!ac || !on) return; if (document.hidden) ac.suspend(); else { ac.resume(); nextT = ac.currentTime + 0.06; } });
+  return { toggle() { try { if (on) stop(); else if (!start()) return null; } catch (e) { return null; } return on; } };
+})();
+$('bBgm').addEventListener('click', () => { const r = BGM.toggle(); $('bBgm').textContent = r === null ? '音樂：無法播放' : r ? '音樂：開' : '音樂：關'; $('bBgm').classList.toggle('on', !!r); });
+
+// 安裝成主畫面 App 時，用 service worker 快取檔案，離線也能玩
+try { if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}
+
+for (const g of GROUPS) buildPanel(g);
+showTab(location.hash.slice(1) || 'play');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
