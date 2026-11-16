@@ -911,7 +911,7 @@ function showTab(name) {
   $('app').classList.toggle('tune', name !== 'play');
   if (SCHEMA[name]) { view = SCHEMA[name].view; }
   $('bView').textContent = '視角：' + VIEW_NAMES[view];
-  setAuto(name !== 'play');
+  if (name !== 'play') setAuto(true);      // 參數分頁一律開自動飛行；回到試玩分頁時維持原狀
   if (name === 'play' && mode === 'review') resume();
   if (name === 'params') refreshExport();
   if (name === 'jet') drawJetPreview();
@@ -1092,15 +1092,29 @@ const BGM = (() => {
   }
   function stop() { clearInterval(timer); on = false; if (ac && ac.suspend) ac.suspend(); }
   document.addEventListener('visibilitychange', () => { if (!ac || !on) return; if (document.hidden) ac.suspend(); else { ac.resume(); nextT = ac.currentTime + 0.06; } });
-  return { toggle() { try { if (on) stop(); else if (!start()) return null; } catch (e) { return null; } return on; } };
+  return {
+    on() { try { if (!on) start(); else if (ac.resume) ac.resume(); } catch (e) {} },
+    off() { try { if (on) stop(); } catch (e) {} },
+    running() { return !!ac && on && ac.state === 'running'; }
+  };
 })();
-$('bBgm').addEventListener('click', () => { const r = BGM.toggle(); $('bBgm').textContent = r === null ? '音樂：無法播放' : r ? '音樂：開' : '音樂：關'; $('bBgm').classList.toggle('on', !!r); });
+// 音樂預設開啟。瀏覽器規定要等使用者第一次點擊或按鍵後才能出聲，所以在第一次操作時啟動
+let wantBgm = load('vfl-bgm') !== false;
+function bgmLabel() { $('bBgm').textContent = '音樂：' + (wantBgm ? '開' : '關'); $('bBgm').classList.toggle('on', wantBgm); }
+$('bBgm').addEventListener('click', () => { wantBgm = !wantBgm; store('vfl-bgm', wantBgm); if (wantBgm) BGM.on(); else BGM.off(); bgmLabel(); });
+function firstGesture() {
+  if (wantBgm) BGM.on();
+  if (!wantBgm || BGM.running()) for (const ev of ['pointerup', 'click', 'keydown']) document.removeEventListener(ev, firstGesture);
+}
+for (const ev of ['pointerup', 'click', 'keydown']) document.addEventListener(ev, firstGesture);
+bgmLabel();
 
 // 安裝成主畫面 App 時，用 service worker 快取檔案，離線也能玩
 try { if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}
 
 for (const g of GROUPS) buildPanel(g);
 showTab(location.hash.slice(1) || 'play');
+setAuto(true);                             // 預設開啟自動飛行；碰一下畫面就會改成手動
 requestAnimationFrame(frame);
 </script>
 </body>
